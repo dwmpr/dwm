@@ -1,0 +1,103 @@
+CREATE DATABASE IF NOT EXISTS Company5;
+USE Company5;
+CREATE TABLE IF NOT EXISTS Dim_Time (
+Time_ID INT PRIMARY KEY,
+Quarter VARCHAR(10),
+Month VARCHAR(20),
+Year INT
+);
+CREATE TABLE IF NOT EXISTS Dim_Location (
+Location_ID INT PRIMARY KEY,
+City VARCHAR(50),
+Province_State VARCHAR(50),
+Country VARCHAR(50)
+);
+CREATE TABLE IF NOT EXISTS Dim_Item (
+Item_ID INT PRIMARY KEY,
+Item_Name VARCHAR(100),
+Category VARCHAR(50)
+);
+CREATE TABLE IF NOT EXISTS Fact_Sales (
+Sale_ID INT PRIMARY KEY,
+Time_ID INT,
+Location_ID INT,
+Item_ID INT,
+Sales_Amount DECIMAL(10, 2),
+Units_Sold INT,
+FOREIGN KEY (Time_ID) REFERENCES Dim_Time(Time_ID),
+FOREIGN KEY (Location_ID) REFERENCES Dim_Location(Location_ID),
+FOREIGN KEY (Item_ID) REFERENCES Dim_Item(Item_ID)
+);
+INSERT INTO Dim_Time (Time_ID, Quarter, Month, Year) VALUES
+(51, 'Q1', 'January', 2024),
+(52, 'Q1', 'February', 2024),
+(53, 'Q1', 'March', 2024),
+(54, 'Q2', 'April', 2024),
+(55, 'Q2', 'May', 2024),
+(56, 'Q2', 'June', 2024);
+INSERT INTO Dim_Location (Location_ID, City, Province_State, Country) VALUES
+(1001, 'New York', 'NY', 'USA'),
+(1002, 'Chicago', 'IL', 'USA'),
+(1003, 'Toronto', 'ON', 'Canada'),
+(1004, 'Vancouver', 'BC', 'Canada');
+INSERT INTO Dim_Item (Item_ID, Item_Name, Category) VALUES
+(1, 'Laptop', 'Electronics'),
+(2, 'Smartphone', 'Electronics'),
+(3, 'Desk', 'Furniture'),
+(4, 'Chair', 'Furniture');
+INSERT INTO Fact_Sales (Sale_ID, Time_ID, Location_ID, Item_ID, Sales_Amount,
+Units_Sold) VALUES
+(1, 51, 1001, 1, 5000.00, 10),
+(2, 51, 1002, 2, 3000.00, 15),
+(3, 52, 1001, 3, 2000.00, 5),
+(4, 52, 1003, 4, 1500.00, 10),
+(5, 53, 1002, 1, 6000.00, 12),
+(6, 53, 1004, 2, 4000.00, 20),
+(7, 54, 1001, 3, 2500.00, 6),
+(8, 54, 1003, 4, 1800.00, 12),
+(9, 55, 1002, 1, 7000.00, 14),
+(10, 55, 1004, 2, 3500.00, 18),
+(11, 56, 1001, 3, 3000.00, 7),
+(12, 56, 1003, 4, 2000.00, 15);
+
+-- ROLLUP OPERATION
+SELECT t.Quarter, SUM(f.Sales_Amount) AS Total_Sales
+FROM Fact_Sales f
+JOIN Dim_Time t ON f.Time_ID = t.Time_ID
+GROUP BY t.Quarter;
+
+-- DRILLDOWN OPERATION
+SELECT t.Quarter, t.Month, SUM(f.Sales_Amount) AS Total_Sales
+FROM Fact_Sales f
+JOIN Dim_Time t ON f.Time_ID = t.Time_ID
+GROUP BY t.Quarter, t.Month
+ORDER BY t.Quarter, t.Month;
+
+-- SLICE OPERATION
+SELECT t.Month, l.City, i.Item_Name, SUM(f.Sales_Amount) AS Total_Sales
+FROM Fact_Sales f
+JOIN Dim_Time t ON f.Time_ID = t.Time_ID
+JOIN Dim_Location l ON f.Location_ID = l.Location_ID
+JOIN Dim_Item i ON f.Item_ID = i.Item_ID
+WHERE t.Quarter = 'Q1'
+GROUP BY t.Month, l.City, i.Item_Name;
+
+-- DICE OPERATION
+SELECT t.Quarter, t.Month, l.City, i.Item_Name, SUM(f.Sales_Amount) AS Total_Sales
+FROM Fact_Sales f
+JOIN Dim_Time t ON f.Time_ID = t.Time_ID
+JOIN Dim_Location l ON f.Location_ID = l.Location_ID
+JOIN Dim_Item i ON f.Item_ID = i.Item_ID
+WHERE t.Quarter IN ('Q1', 'Q2')
+AND l.Country = 'USA'
+AND i.Category = 'Electronics'
+GROUP BY t.Quarter, t.Month, l.City, i.Item_Name;
+
+-- PIVOT OPERATION
+SELECT l.City,
+SUM(CASE WHEN t.Quarter = 'Q1' THEN f.Sales_Amount ELSE 0 END) AS Q1_Sales,
+SUM(CASE WHEN t.Quarter = 'Q2' THEN f.Sales_Amount ELSE 0 END) AS Q2_Sales
+FROM Fact_Sales f
+JOIN Dim_Time t ON f.Time_ID = t.Time_ID
+JOIN Dim_Location l ON f.Location_ID = l.Location_ID
+GROUP BY l.City;
